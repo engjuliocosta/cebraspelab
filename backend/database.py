@@ -1,6 +1,7 @@
 import json
 import os
 import sqlite3
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -8,9 +9,12 @@ from typing import Any, Dict, List, Optional
 _env_data_dir = os.environ.get("CEBRASPELAB_DATA_DIR")
 if _env_data_dir:
     DATA_DIR = Path(_env_data_dir)
+elif getattr(sys, "frozen", False):
+    # Quando executado via binário nativo PyInstaller (--onefile)
+    DATA_DIR = Path(sys.executable).resolve().parent / "cebraspelab_dados"
 elif Path(__file__).parent.is_file():
     # Quando executado a partir de um arquivo único .pyz (zipapp universal)
-    DATA_DIR = Path(__file__).parent.parent / "cebraspelab_data"
+    DATA_DIR = Path(__file__).parent.parent / "cebraspelab_dados"
 else:
     DATA_DIR = Path(__file__).parent / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)

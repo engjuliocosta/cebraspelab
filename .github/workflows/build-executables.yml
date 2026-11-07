@@ -49,12 +49,12 @@ jobs:
       - name: Build Native Standalone Binary via PyInstaller (${{ matrix.os }})
         if: matrix.os != 'windows-latest'
         run: |
-          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist:frontend/dist" --collect-all genanki --collect-all reportlab launcher_desktop.py
+          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist:frontend/dist" --collect-all genanki --collect-all reportlab launcher.py
 
       - name: Build Native Standalone Binary via PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist;frontend/dist" --collect-all genanki --collect-all reportlab launcher_desktop.py
+          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist;frontend/dist" --collect-all genanki --collect-all reportlab launcher.py
 
       - name: Upload Executables
         uses: actions/upload-artifact@v4
