@@ -1,5 +1,6 @@
 import io
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
@@ -1281,13 +1282,14 @@ def create_demo_battery() -> Dict[str, Any]:
     return get_battery(battery_id)
 
 
-# Servir build estático do frontend caso exista em ../frontend/dist ou CEBRASPELAB_FRONTEND_DIST
+# Servir build estático do frontend caso exista em ../frontend/dist, sys._MEIPASS ou CEBRASPELAB_FRONTEND_DIST
 _env_frontend_dist = os.environ.get("CEBRASPELAB_FRONTEND_DIST")
-FRONTEND_DIST = (
-    Path(_env_frontend_dist)
-    if _env_frontend_dist
-    else Path(__file__).parent.parent / "frontend" / "dist"
-)
+if _env_frontend_dist:
+    FRONTEND_DIST = Path(_env_frontend_dist)
+elif getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+    FRONTEND_DIST = Path(getattr(sys, "_MEIPASS")) / "frontend" / "dist"
+else:
+    FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 if FRONTEND_DIST.exists() and (FRONTEND_DIST / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 

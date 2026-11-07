@@ -27,3 +27,4 @@ dist/.cebraspelab_runtime/
 .env
 .env.local
 *.pem
+
