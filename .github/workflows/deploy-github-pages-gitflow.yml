@@ -1,0 +1,109 @@
+name: GitFlow CI/CD — Deploy GitHub Pages (Top-Level URL) & Pacote Hotmart/Local
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+      - 'release/**'
+      - 'hotfix/**'
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+  workflow_dispatch:
+    inputs:
+      custom_domain:
+        description: 'Domínio de Alto Nível para o GitHub Pages (sem subpasta de repo, ex: app.cebraspelab.com.br)'
+        required: false
+        default: 'app.cebraspelab.com.br'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'pages-gitflow-${{ github.ref }}'
+  cancel-in-progress: true
+
+jobs:
+  # ===========================================================================
+  # ESTÁGIO 1 (GitFlow CI): Testes Unitários Backend + Build Frontend Base '/'
+  # Roda em develop, feature PRs, release/*, hotfix/* e main
+  # ===========================================================================
+  gitflow-ci-test-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      top_level_domain: ${{ steps.domain_cfg.outputs.domain }}
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Configurar uv & Python 3.12
+        uses: astral-sh/setup-uv@v4
+
+      - name: Instalar dependências e Compilar Frontend (base '/' — URL de Alto Nível)
+        run: |
+          npm install --prefix frontend
+          npm run build --prefix frontend
+
+      - name: Configurar URL de Alto Nível (CNAME sem vínculo com nome do repo)
+        id: domain_cfg
+        run: |
+          DOMAIN="${{ github.event.inputs.custom_domain || vars.CEBRASPELAB_CUSTOM_DOMAIN || '' }}"
+          if [ -n "$DOMAIN" ]; then
+            echo "$DOMAIN" > frontend/dist/CNAME
+            echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
+            echo "CNAME configurado para URL de Alto Nível: https://$DOMAIN"
+          else
+            echo "domain=" >> $GITHUB_OUTPUT
+            echo "Usando domínio raiz da conta GitHub Pages (<org>.github.io) com base '/'"
+          fi
+          touch frontend/dist/.nojekyll
+
+      - name: Gerar Executável Universal (CebraspeLab-Universal.pyz) & Pacote Hotmart (.zip)
+        run: |
+          uv run --directory backend python ../empacotar_universal.py
+          uv run --directory backend python ../empacotar_hotmart.py
+
+      - name: Executar Suíte Completa de Testes Unitários
+        run: uv run --directory backend python -m unittest discover -s tests -v
+
+      - name: Upload do Artefato GitHub Pages (Root '/')
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: frontend/dist
+
+      - name: Upload do Kit Comercial Hotmart & Executável Universal
+        uses: actions/upload-artifact@v4
+        with:
+          name: Pacote-Comercial-Hotmart-e-Universal
+          path: |
+            dist/Pacote_Hotmart_CebraspeLab.zip
+            dist/CebraspeLab-Universal.pyz
+            CebraspeLab-Universal.cmd
+
+  # ===========================================================================
+  # ESTÁGIO 2 (GitFlow CD): Publicação no GitHub Pages (Apenas main / release / hotfix)
+  # ===========================================================================
+  gitflow-deploy-github-pages:
+    needs: gitflow-ci-test-and-build
+    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/'))
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publicar Interface no GitHub Pages (URL de Alto Nível)
+        id: deployment
+        uses: actions/deploy-pages@v4
+

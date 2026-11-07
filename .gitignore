@@ -1,0 +1,29 @@
+# Python & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+backend/.venv/
+venv/
+ENV/
+build/
+*.spec
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+
+# Local Databases, Vaults & Runtime Cache (User Data)
+backend/data/
+cebraspelab_dados/
+dist/cebraspelab_dados/
+.cebraspelab_runtime/
+dist/.cebraspelab_runtime/
+*.db
+*.db-journal
+*.sqlite3
+
+# Secrets & Environment
+.env
+.env.local
+*.pem

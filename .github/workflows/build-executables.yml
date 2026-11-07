@@ -1,0 +1,67 @@
+name: Build Cross-Platform Executables (Windows, Linux, macOS + Universal .pyz)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-universal-and-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: CebraspeLab-Windows-x64.exe
+            binary_path: backend/dist/CebraspeLab.exe
+          - os: ubuntu-latest
+            artifact_name: CebraspeLab-Linux-x86_64
+            binary_path: backend/dist/CebraspeLab
+          - os: macos-latest
+            artifact_name: CebraspeLab-macOS-ARM64
+            binary_path: backend/dist/CebraspeLab
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build Frontend
+        run: |
+          npm install --prefix frontend
+          npm run build --prefix frontend
+
+      - name: Setup uv & Python 3.12
+        uses: astral-sh/setup-uv@v4
+
+      - name: Run Unit Tests (42 Tests)
+        run: uv run --directory backend python -m unittest discover -s tests -v
+
+      - name: Build Universal Single-File Package (CebraspeLab-Universal.pyz)
+        run: uv run --directory backend python ../empacotar_universal.py
+
+      - name: Build Native Standalone Binary via PyInstaller (${{ matrix.os }})
+        if: matrix.os != 'windows-latest'
+        run: |
+          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist:frontend/dist" --collect-all genanki --collect-all reportlab launcher_desktop.py
+
+      - name: Build Native Standalone Binary via PyInstaller (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          uv run --directory backend --with pyinstaller pyinstaller --noconfirm --onefile --name CebraspeLab --add-data "../frontend/dist;frontend/dist" --collect-all genanki --collect-all reportlab launcher_desktop.py
+
+      - name: Upload Executables
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: |
+            ${{ matrix.binary_path }}
+            dist/CebraspeLab-Universal.pyz
+            CebraspeLab-Universal.cmd
+
