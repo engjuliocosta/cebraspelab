@@ -1,4 +1,4 @@
-name: GitFlow CI/CD — Deploy GitHub Pages (Top-Level URL) & Pacote Hotmart/Local
+name: GitFlow CI/CD — Deploy GitHub Pages (Default URL) & Pacote Hotmart/Local
 
 on:
   push:
@@ -16,9 +16,9 @@ on:
   workflow_dispatch:
     inputs:
       custom_domain:
-        description: 'Domínio de Alto Nível para o GitHub Pages (sem subpasta de repo, ex: app.cebraspelab.com.br)'
+        description: 'Domínio customizado opcional (deixe em branco para usar o padrão https://engjuliocosta.github.io/cebraspelab/)'
         required: false
-        default: 'app.cebraspelab.com.br'
+        default: ''
 
 permissions:
   contents: write
@@ -34,13 +34,11 @@ concurrency:
 
 jobs:
   # ===========================================================================
-  # ESTÁGIO 1 (GitFlow CI): Testes Unitários Backend + Build Frontend Base '/'
+  # ESTÁGIO 1 (GitFlow CI): Testes Unitários Backend + Build Frontend
   # Roda em develop, feature PRs, release/*, hotfix/* e main
   # ===========================================================================
   gitflow-ci-test-and-build:
     runs-on: ubuntu-latest
-    outputs:
-      top_level_domain: ${{ steps.domain_cfg.outputs.domain }}
     steps:
       - name: Checkout do código
         uses: actions/checkout@v4
@@ -53,18 +51,21 @@ jobs:
       - name: Configurar uv & Python 3.12
         uses: astral-sh/setup-uv@v4
 
-      - name: Instalar dependências e Compilar Frontend (base '/' — URL de Alto Nível)
+      - name: Instalar dependências e Compilar Frontend (URL Padrão do GitHub Pages)
         run: |
           npm install --prefix frontend
           npm run build --prefix frontend
 
-      - name: Configurar URL de Alto Nível (CNAME app.cebraspelab.com.br sem vínculo com nome do repo)
-        id: domain_cfg
+      - name: Preparar Build GitHub Pages (Sem CNAME para usar a URL padrão do GitHub Pages)
         run: |
-          DOMAIN="${{ github.event.inputs.custom_domain || vars.CEBRASPELAB_CUSTOM_DOMAIN || 'app.cebraspelab.com.br' }}"
-          echo "$DOMAIN" > frontend/dist/CNAME
-          echo "domain=$DOMAIN" >> $GITHUB_OUTPUT
-          echo "CNAME configurado para URL de Alto Nível: https://$DOMAIN"
+          rm -f frontend/dist/CNAME
+          DOMAIN="${{ github.event.inputs.custom_domain || vars.CEBRASPELAB_CUSTOM_DOMAIN || '' }}"
+          if [ -n "$DOMAIN" ]; then
+            echo "$DOMAIN" > frontend/dist/CNAME
+            echo "CNAME opcional configurado: https://$DOMAIN"
+          else
+            echo "Usando URL padrão do GitHub Pages: https://${{ github.repository_owner }}.github.io/cebraspelab/"
+          fi
           touch frontend/dist/.nojekyll
 
       - name: Gerar Executável Universal (CebraspeLab-Universal.pyz) & Pacote Hotmart (.zip)
@@ -75,22 +76,23 @@ jobs:
       - name: Executar Suíte Completa de Testes Unitários (47 Testes)
         run: uv run --directory backend python -m unittest discover -s tests -v
 
-      - name: Publicar Build Estático na Branch gh-pages (Compatível com Deploy from Branch)
+      - name: Publicar Build Estático na Branch gh-pages
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/'))
         run: |
-           WORK_DIR="$(mktemp -d)"
+          WORK_DIR="$(mktemp -d)"
           cp -r frontend/dist/. "$WORK_DIR/"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan gh-pages-temp
           git rm -rf . >/dev/null 2>&1 || true
           cp -r "$WORK_DIR"/. .
+          rm -f CNAME
           git add -A
-          git commit -m "deploy(pages): publicar interface em https://app.cebraspelab.com.br/"
+          git commit -m "deploy(pages): publicar interface na URL padrao do GitHub Pages"
           git push -f origin HEAD:gh-pages
           git checkout -f "${{ github.ref_name }}"
 
-      - name: Upload do Artefato GitHub Pages (Root '/')
+      - name: Upload do Artefato GitHub Pages
         if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/'))
         uses: actions/upload-pages-artifact@v3
         with:
@@ -118,7 +120,7 @@ jobs:
         continue-on-error: true
         uses: actions/configure-pages@v5
 
-      - name: Publicar Interface no GitHub Pages (URL de Alto Nível)
+      - name: Publicar Interface no GitHub Pages
         id: deployment
         if: steps.pages_cfg.outcome == 'success'
         continue-on-error: true
@@ -130,6 +132,5 @@ jobs:
             echo "✅ Publicado via GitHub Actions Pages em: ${{ steps.deployment.outputs.page_url }}"
           else
             echo "✅ Build publicado com sucesso na branch 'gh-pages'!"
-            echo "👉 Para ativar no painel do GitHub (1 única vez): Acesse https://github.com/${{ github.repository }}/settings/pages"
-            echo "   e escolha 'Deploy from a branch -> gh-pages / (root)' OU 'Source: GitHub Actions'."
+            echo "🌐 URL Padrão do GitHub Pages: https://${{ github.repository_owner }}.github.io/cebraspelab/"
           fi

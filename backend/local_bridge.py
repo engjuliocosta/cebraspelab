@@ -31,7 +31,7 @@ import storage_manager
 from topic_parser import extract_assertions_from_subtopics, parse_pdf_topics_and_subtopics
 
 DEFAULT_TOP_LEVEL_PAGES_URL = os.environ.get(
-    "CEBRASPELAB_PAGES_URL", "https://app.cebraspelab.com.br"
+    "CEBRASPELAB_PAGES_URL", "https://engjuliocosta.github.io/cebraspelab"
 )
 
 

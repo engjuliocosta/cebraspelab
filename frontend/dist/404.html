@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CebraspeLab — Redirecionando...</title>
     <script>
-      // Redirecionamento SPA para URL de Alto Nível no GitHub Pages (sem subpasta de repositório)
-      window.location.replace('/' + window.location.search + window.location.hash);
+      // Redirecionamento SPA compatível com a URL padrão do GitHub Pages (https://engjuliocosta.github.io/cebraspelab/)
+      var pathSegmentsToKeep = window.location.hostname.endsWith('.github.io') ? 1 : 0;
+      var l = window.location;
+      var basePath = l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/';
+      l.replace(basePath + l.search + l.hash);
     </script>
   </head>
   <body></body>
 </html>
-

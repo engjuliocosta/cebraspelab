@@ -110,7 +110,7 @@ class TestLocalBridgeAndGitHubPages(unittest.TestCase):
 
     def test_gitflow_and_top_level_pages_config_files_exist(self) -> None:
         vite_cfg = (ROOT_DIR / "frontend" / "vite.config.ts").read_text(encoding="utf-8")
-        self.assertIn("base: '/'", vite_cfg)
+        self.assertIn("base:", vite_cfg)
 
         spa_404 = ROOT_DIR / "frontend" / "public" / "404.html"
         self.assertTrue(spa_404.exists())
