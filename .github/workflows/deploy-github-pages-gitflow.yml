@@ -35,7 +35,6 @@ concurrency:
 jobs:
   # ===========================================================================
   # ESTÁGIO 1 (GitFlow CI): Testes Unitários Backend + Build Frontend
-  # Roda em develop, feature PRs, release/*, hotfix/* e main
   # ===========================================================================
   gitflow-ci-test-and-build:
     runs-on: ubuntu-latest
@@ -59,13 +58,7 @@ jobs:
       - name: Preparar Build GitHub Pages (Sem CNAME para usar a URL padrão do GitHub Pages)
         run: |
           rm -f frontend/dist/CNAME
-          DOMAIN="${{ github.event.inputs.custom_domain || vars.CEBRASPELAB_CUSTOM_DOMAIN || '' }}"
-          if [ -n "$DOMAIN" ]; then
-            echo "$DOMAIN" > frontend/dist/CNAME
-            echo "CNAME opcional configurado: https://$DOMAIN"
-          else
-            echo "Usando URL padrão do GitHub Pages: https://${{ github.repository_owner }}.github.io/cebraspelab/"
-          fi
+          cp frontend/dist/index.html frontend/dist/404.html
           touch frontend/dist/.nojekyll
 
       - name: Gerar Executável Universal (CebraspeLab-Universal.pyz) & Pacote Hotmart (.zip)
@@ -108,29 +101,25 @@ jobs:
             CebraspeLab-Universal.cmd
 
   # ===========================================================================
-  # ESTÁGIO 2 (GitFlow CD): Publicação via GitHub Actions Pages (se habilitado)
+  # ESTÁGIO 2 (GitFlow CD): Ativação e Publicação via GitHub Actions Pages
   # ===========================================================================
   gitflow-deploy-github-pages:
     needs: gitflow-ci-test-and-build
     if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/hotfix/'))
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Configurar GitHub Pages automaticamente
+      - name: Habilitar e Configurar GitHub Pages Automaticamente (enablement=true)
         id: pages_cfg
         continue-on-error: true
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: Publicar Interface no GitHub Pages
         id: deployment
         if: steps.pages_cfg.outcome == 'success'
         continue-on-error: true
         uses: actions/deploy-pages@v4
-
-      - name: Status da Publicação GitHub Pages
-        run: |
-          if [ "${{ steps.deployment.outcome }}" = "success" ]; then
-            echo "✅ Publicado via GitHub Actions Pages em: ${{ steps.deployment.outputs.page_url }}"
-          else
-            echo "✅ Build publicado com sucesso na branch 'gh-pages'!"
-            echo "🌐 URL Padrão do GitHub Pages: https://${{ github.repository_owner }}.github.io/cebraspelab/"
-          fi
